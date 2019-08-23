@@ -1,0 +1,7 @@
+service: alexa-guard
+provider:
+    name: aws
+    runtime: nodejs8.10
+functions:
+    index:
+        handler: index.guard
