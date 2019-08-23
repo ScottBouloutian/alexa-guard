@@ -1,7 +1,41 @@
 service: alexa-guard
 provider:
     name: aws
+    stage: ${opt:stage, 'dev'}
     runtime: nodejs8.10
+    timeout: ${self:custom.timeout.${self:provider.stage}}
 functions:
     index:
-        handler: index.guard
+        handler: index.handler
+        environment:
+            ALEXA_GUARD_CLIENT_ID: ${self:custom.clientId.${self:provider.stage}}
+            ALEXA_GUARD_CLIENT_SECRET: ${self:custom.clientSecret.${self:provider.stage}}
+            ALEXA_GUARD_PRODUCT_ID: ${self:custom.productId.${self:provider.stage}}
+            ALEXA_GUARD_DEVICE_ID: ${self:custom.deviceId.${self:provider.stage}}
+            ALEXA_GUARD_REFRESH_TOKEN: ${self:custom.refreshToken.${self:provider.stage}}
+        events:
+            - schedule: rate(1 hour)
+            - enabled: ${self:custom.enabled.${self:provider.stage}}
+            - http: POST guard
+custom:
+    clientId:
+        dev: ${ssm:/alexa-guard/dev/alexa-guard-client-id~true}
+        prod: ${ssm:/alexa-guard/dev/alexa-guard-client-id~true}
+    clientSecret:
+        dev: ${ssm:/alexa-guard/dev/alexa-guard-client-secret~true}
+        prod: ${ssm:/alexa-guard/dev/alexa-guard-client-secret~true}
+    productId:
+        dev: alexa_guard
+        prod: alexa_guard
+    deviceId:
+        dev: alexa-guard-dev
+        prod: alexa-guard-prod
+    refreshToken:
+        dev: ${ssm:/alexa-guard/dev/alexa-guard-refresh-token~true}
+        prod: ${ssm:/alexa-guard/dev/alexa-guard-refresh-token~true}
+    timeout:
+        dev: 10
+        prod: 30
+    enabled:
+        dev: false
+        prod: true

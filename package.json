@@ -1,11 +1,13 @@
 {
   "scripts": {
-    "start": "node index"
+    "start": "node index",
+    "deploy": "serverless deploy"
   },
   "dependencies": {
     "aws-sdk": "^2.101.0",
     "axios": "^0.16.2",
     "bluebird": "^3.5.0",
+    "opn": "^6.0.0",
     "rxjs": "^5.4.3"
   },
   "name": "alexa-guard",
@@ -17,6 +19,7 @@
   "devDependencies": {
     "eslint": "^6.2.1",
     "eslint-config-airbnb-base": "^14.0.0",
-    "eslint-plugin-import": "^2.18.2"
+    "eslint-plugin-import": "^2.18.2",
+    "serverless": "^1.50.0"
   }
 }

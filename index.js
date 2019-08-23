@@ -3,6 +3,7 @@ const AWS = require('aws-sdk');
 const path = require('path');
 const fs = require('fs');
 const childProcess = require('child_process');
+const auth = require('./auth');
 
 const exec = Promise.promisify(childProcess.exec, { context: childProcess });
 const polly = new AWS.Polly();
@@ -12,7 +13,7 @@ fs.chmodSync('/tmp/sox', '777');
 AWS.config.update({ region: 'us-east-1' });
 
 function speechQuery(text) {
-  const jsonData = fs.readFileSync(path.resolve(__dirname, '.token.json'));
+  const jsonData = fs.readFileSync('/tmp/.token.json');
   const { token } = JSON.parse(jsonData);
   const tempDirectory = '/tmp';
   const filePath = (fileName) => path.resolve(tempDirectory, fileName);
@@ -52,15 +53,23 @@ function speechQuery(text) {
         `-o ${filePath('avs_response.txt')}`,
         'https://access-alexa-na.amazon.com/v1/avs/speechrecognizer/recognize',
       ].join(' '))
-    ))
-    .then(() => {
-      const response = fs.readFileSync(filePath('avs_response.txt'));
-      console.log(response.toString());
-    });
+    ));
 }
 
-const guard = () => speechQuery('turn on guard')
-  .then(console.log)
-  .catch(console.error);
+const handler = (event) => {
+  if (event.source === 'aws.events') {
+    console.log('Refreshing auth tokens...');
+    return auth.refresh();
+  }
+  if (event.path === '/guard' && event.httpMethod === 'POST') {
+    const { enabled } = event.queryStringParameters;
+    const query = enabled === 'true' ? 'turn on guard' : 'turn off guard';
+    console.log(`Performing speech query: ${query}`);
+    return speechQuery(query)
+      .then(() => ({ statusCode: 200 }))
+      .catch(() => ({ statusCode: 500 }));
+  }
+  return Promise.reject(new Error('unsupported event'));
+};
 
-module.exports = { guard };
+module.exports = { handler };
