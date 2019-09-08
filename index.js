@@ -49,10 +49,10 @@ function speechQuery(text) {
       Name: '/alexa-guard/dev/alexa-guard-token',
       WithDecryption: true,
     }))
-    .then((parameter) => (
+    .then(({ Parameter }) => (
       exec([
         'curl -i -k',
-        `-H "Authorization: Bearer ${parameter.Value}"`,
+        `-H "Authorization: Bearer ${Parameter.Value}"`,
         `-F "metadata=<${metadataPath};type=application/json; charset=UTF-8"`,
         `-F "audio=<${filePath('avs_request.wav')};type=audio/L16; rate=16000; channels=1"`,
         `-o ${filePath('avs_response.txt')}`,

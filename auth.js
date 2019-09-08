@@ -99,10 +99,10 @@ const auth = {
     return getParameter({
       Name: '/alexa-guard/dev/alexa-guard-refresh-token',
       WithDecryption: true,
-    }).then((parameter) => (
+    }).then(({ Parameter }) => (
       axios.post('https://api.amazon.com/auth/o2/token', {
         grant_type: 'refresh_token',
-        refresh_token: parameter.Value,
+        refresh_token: Parameter.Value,
         client_id: clientId,
         client_secret: clientSecret,
         redirect_uri: redirectUri,
