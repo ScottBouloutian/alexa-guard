@@ -12,7 +12,6 @@ functions:
             ALEXA_GUARD_CLIENT_SECRET: ${self:custom.clientSecret.${self:provider.stage}}
             ALEXA_GUARD_PRODUCT_ID: ${self:custom.productId.${self:provider.stage}}
             ALEXA_GUARD_DEVICE_ID: ${self:custom.deviceId.${self:provider.stage}}
-            ALEXA_GUARD_REFRESH_TOKEN: ${self:custom.refreshToken.${self:provider.stage}}
         events:
             - schedule: rate(1 hour)
             - enabled: ${self:custom.enabled.${self:provider.stage}}
@@ -30,9 +29,6 @@ custom:
     deviceId:
         dev: alexa-guard-dev
         prod: alexa-guard-prod
-    refreshToken:
-        dev: ${ssm:/alexa-guard/dev/alexa-guard-refresh-token~true}
-        prod: ${ssm:/alexa-guard/dev/alexa-guard-refresh-token~true}
     timeout:
         dev: 10
         prod: 30

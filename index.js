@@ -5,16 +5,17 @@ const fs = require('fs');
 const childProcess = require('child_process');
 const auth = require('./auth');
 
+AWS.config.update({ region: 'us-east-1' });
+
 const exec = Promise.promisify(childProcess.exec, { context: childProcess });
 const polly = new AWS.Polly();
 const synthesizeSpeech = Promise.promisify(polly.synthesizeSpeech, { context: polly });
+const ssm = new AWS.SSM();
+const getParameter = Promise.promisify(ssm.getParameter, { context: ssm });
 fs.copyFileSync(`${process.env.LAMBDA_TASK_ROOT}/bin/sox`, '/tmp/sox');
 fs.chmodSync('/tmp/sox', '777');
-AWS.config.update({ region: 'us-east-1' });
 
 function speechQuery(text) {
-  const jsonData = fs.readFileSync('/tmp/.token.json');
-  const { token } = JSON.parse(jsonData);
   const tempDirectory = '/tmp';
   const filePath = (fileName) => path.resolve(tempDirectory, fileName);
   const metadataPath = path.resolve(__dirname, 'metadata.json');
@@ -44,10 +45,14 @@ function speechQuery(text) {
         filePath('avs_request.wav'),
       ].join(' '));
     })
-    .then(() => (
+    .then(() => getParameter({
+      Name: '/alexa-guard/dev/alexa-guard-token',
+      WithDecryption: true,
+    }))
+    .then((parameter) => (
       exec([
         'curl -i -k',
-        `-H "Authorization: Bearer ${token}"`,
+        `-H "Authorization: Bearer ${parameter.Value}"`,
         `-F "metadata=<${metadataPath};type=application/json; charset=UTF-8"`,
         `-F "audio=<${filePath('avs_request.wav')};type=audio/L16; rate=16000; channels=1"`,
         `-o ${filePath('avs_response.txt')}`,

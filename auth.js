@@ -1,18 +1,22 @@
 const url = require('url');
 const http = require('http');
 const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
 const opn = require('opn');
+const AWS = require('aws-sdk');
+const Promise = require('bluebird');
+
+AWS.config.update({ region: 'us-east-1' });
 
 const clientId = process.env.ALEXA_GUARD_CLIENT_ID;
 const clientSecret = process.env.ALEXA_GUARD_CLIENT_SECRET;
 const productId = process.env.ALEXA_GUARD_PRODUCT_ID;
 const deviceId = process.env.ALEXA_GUARD_DEVICE_ID;
-const seedRefreshToken = process.env.ALEXA_GUARD_REFRESH_TOKEN;
 const randomString = Math.random().toString();
 const port = 3000;
 const redirectUri = `http://localhost:${port}/callback`;
+const ssm = new AWS.SSM();
+const getParameter = Promise.promisify(ssm.getParameter, { context: ssm });
+const putParameter = Promise.promisify(ssm.putParameter, { context: ssm });
 
 // Format the authentication url
 const loginPath = url.format({
@@ -64,10 +68,21 @@ const auth = {
             if (response.status !== 200) {
               resp.end(`Error code ${response.status}`);
             }
-            const token = response.data.access_token;
-            const refreshToken = response.data.refresh_token;
-            const data = JSON.stringify({ token, refreshToken });
-            fs.writeFileSync(path.resolve(__dirname, '.token.json'), data);
+            return Promise.all([
+              {
+                Name: '/alexa-guard/dev/alexa-guard-token',
+                Value: response.data.access_token,
+                Overwrite: true,
+                Type: 'SecureString',
+              },
+              {
+                Name: '/alexa-guard/dev/alexa-guard-refresh-token',
+                Value: response.data.refresh_token,
+                Overwrite: true,
+                Type: 'SecureString',
+              },
+            ].map((params) => putParameter(params)));
+          }).then(() => {
             resp.end('Done, you may close this page');
             server.close();
             process.exit();
@@ -81,24 +96,35 @@ const auth = {
   },
 
   refresh() {
-    const exists = fs.existsSync('/tmp/.token.json');
-    const tokenData = exists
-      ? JSON.parse(fs.readFileSync('/tmp/.token.json'))
-      : { refreshToken: seedRefreshToken };
-    return axios.post('https://api.amazon.com/auth/o2/token', {
-      grant_type: 'refresh_token',
-      refresh_token: tokenData.refreshToken,
-      client_id: clientId,
-      client_secret: clientSecret,
-      redirect_uri: redirectUri,
-    }).then((response) => {
+    return getParameter({
+      Name: '/alexa-guard/dev/alexa-guard-refresh-token',
+      WithDecryption: true,
+    }).then((parameter) => (
+      axios.post('https://api.amazon.com/auth/o2/token', {
+        grant_type: 'refresh_token',
+        refresh_token: parameter.Value,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+      })
+    )).then((response) => {
       if (response.status !== 200) {
         throw new Error(`error code ${response.status}`);
       }
-      const token = response.data.access_token;
-      const refreshToken = response.data.refresh_token;
-      const data = JSON.stringify({ token, refreshToken });
-      fs.writeFileSync('/tmp/.token.json', data);
+      return Promise.all([
+        {
+          Name: '/alexa-guard/dev/alexa-guard-token',
+          Value: response.data.access_token,
+          Overwrite: true,
+          Type: 'SecureString',
+        },
+        {
+          Name: '/alexa-guard/dev/alexa-guard-refresh-token',
+          Value: response.data.refresh_token,
+          Overwrite: true,
+          Type: 'SecureString',
+        },
+      ].map((params) => putParameter(params)));
     });
   },
 };
